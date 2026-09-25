@@ -1,0 +1,19 @@
+[project]
+name = "my-films"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Herun Tarun",email = "herun.s@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "psycopg2-binary (>=2.9.13,<3.0.0)"
+]
+
+[tool.poetry]
+packages = [{include = "my_films", from = "src"}]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
