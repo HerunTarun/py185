@@ -1,0 +1,188 @@
+#!/usr/bin/env python
+
+from textwrap import dedent
+import sys
+
+from contextlib import contextmanager
+
+import psycopg2
+from psycopg2 import extras
+
+class ExpenseData:
+    def __init__(self):
+        self._setup_schema()
+    @contextmanager
+    def _database_connect(self):
+        connection = psycopg2.connect(dbname='expenses')
+        try:
+            with connection:
+                yield connection
+        finally:
+            connection.close()
+
+    def _setup_schema(self):
+        if not self._check_table_exists():
+            with self._database_connect() as connection:
+                with connection.cursor(cursor_factory=extras.DictCursor) as cursor:
+                    create_table = """
+                        CREATE TABLE expenses (
+	                    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	                    created_on date DEFAULT NOW(),
+	                    amount decimal(6,2) NOT NULL CHECK (amount >= 0.01),
+	                    memo text NOT NULL)
+                        """
+                    cursor.execute(create_table)
+
+    def _check_table_exists(self):
+        with self._database_connect() as connection:
+            with connection.cursor(cursor_factory=extras.DictCursor) as cursor:
+                query_table = """
+                    SELECT COUNT(*)
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                    AND table_name = 'expenses'
+                    """
+                cursor.execute(query_table)
+                result = cursor.fetchone()
+
+        return result[0]
+
+    def _display_expenses(self, results):
+        longest_memo = ""
+        first_three_col_length = 34
+        for line in results:
+            columns = [
+                str(line['id']).rjust(3),
+                str(line['created_on']),
+                str(line['amount']).rjust(12),
+                str(line['memo'])
+            ]
+            print(" | ".join(columns))
+            if len(str(line['memo'])) > len(longest_memo):
+                longest_memo = str(line['memo'])
+
+        line = "-" * (first_three_col_length + len(longest_memo))
+        print(line)
+
+    def _display_expense_count(self, expenses):
+        count = len(expenses)
+        if not expenses:
+            print("There are no expenses")
+        elif count == 1:
+            print("There is 1 expense.")
+        else:
+            print(f"There are {count} expenses.")
+
+    def _display_expense_total(self, expenses):
+        total = 0
+        for line in expenses:
+            total += line['amount']
+
+        print(f"Total: {str(total).rjust(24)}")
+
+    def list_expenses(self):
+        with self._database_connect() as connection:
+            with connection.cursor(cursor_factory=extras.DictCursor) as cursor:
+                sql = "SELECT * FROM expenses ORDER BY created_on ASC"
+                cursor.execute(sql)
+                expenses = cursor.fetchall()
+
+        self._display_expense_count(expenses)
+        if expenses:
+            self._display_expenses(expenses)
+            self._display_expense_total(expenses)
+
+    def add_expense(self, amount, memo):
+        with self._database_connect() as connection:
+            with connection.cursor() as cursor:
+                sql = "INSERT INTO expenses (amount, memo) VALUES (%s, %s)"
+                cursor.execute(sql, (amount, memo))
+
+    def search_expenses(self, search_term):
+        sql_search_term = f"%{search_term}%"
+
+        with self._database_connect() as connection:
+            with connection.cursor(cursor_factory=extras.DictCursor) as cursor:
+                sql = "SELECT * FROM expenses WHERE memo ILIKE %s"
+                cursor.execute(sql, (sql_search_term,))
+                search_results = cursor.fetchall()
+
+        self._display_expense_count(search_results)
+        self._display_expenses(search_results)
+        self._display_expense_total(search_results)
+
+    def delete_expense(self, query_id):
+        with self._database_connect() as connection:
+            with connection.cursor(cursor_factory=extras.DictCursor) as cursor:
+                sql_select = "SELECT * FROM expenses WHERE id = %s"
+                cursor.execute(sql_select, (query_id,))
+                search_results = cursor.fetchone()
+                if search_results:
+                    sql_delete = "DELETE FROM expenses WHERE id = %s"
+                    cursor.execute(sql_delete, (query_id,))
+                    print("The following expense has been deleted:")
+                    self._display_expenses([search_results])
+                else:
+                    print(f"There is no expense with id {query_id}")
+
+    def delete_all_expenses(self):
+        with self._database_connect() as connection:
+            with connection.cursor(cursor_factory=extras.DictCursor) as cursor:
+                cursor.execute("DELETE FROM expenses")
+                print("All expenses have been deleted.")
+
+
+class CLI:
+    def __init__(self):
+        self.application = ExpenseData()
+
+    def display_help(self):
+        print(dedent("""
+            An expense recording system
+
+            Commands:
+
+            add AMOUNT MEMO [DATE] - record a new expense
+            clear - delete all expenses
+            list - list all expenses
+            delete NUMBER - remove expense with id NUMBER
+            search QUERY - list expenses with a matching memo field
+        """).strip("\n"))
+
+    def run(self, arguments):
+        if not arguments:
+            command = None
+        else:
+            command = arguments.pop(0)
+
+        match command:
+            case "add":
+                if len(arguments) < 2:
+                    print("You must provide an amount and memo")
+                    return
+                amount, memo = arguments
+                self.application.add_expense(amount, memo)
+            case "list":
+                self.application.list_expenses()
+            case "search":
+                if len(arguments) < 1:
+                    print("You must provide a search query")
+                    return
+                else:
+                    self.application.search_expenses(arguments[0])
+            case "delete":
+                if len(arguments) < 1:
+                    print("You must provide an expense ID")
+                    return
+                self.application.delete_expense(arguments[0])
+            case "clear":
+                print("This will remove all expenses. Are you sure? (y/n)")
+                answer = input().strip()
+                if answer[0].lower() == 'y':
+                    self.application.delete_all_expenses()
+            case _:
+                self.display_help()
+
+if __name__ == "__main__":
+    cli = CLI()
+    cli.run(sys.argv[1:])
