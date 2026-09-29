@@ -1,3 +1,4 @@
+import secrets
 from uuid import uuid4
 from functools import wraps
 from flask import (
@@ -12,8 +13,8 @@ from flask import (
 from werkzeug.exceptions import NotFound
 from todos.utils import (
     delete_todo_by_id,
-    error_for_list_title, 
-    error_for_todo, 
+    error_for_list_title,
+    error_for_todo,
     find_list_by_id,
     find_todo_by_id,
     is_list_completed,
@@ -24,7 +25,7 @@ from todos.utils import (
 )
 
 app = Flask(__name__)
-app.secret_key='secret1'
+app.secret_key = secrets.token_hex(32)
 
 def require_list(f):
     @wraps(f)
