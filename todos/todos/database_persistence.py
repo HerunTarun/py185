@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class DatabasePersistence:
     def __init__(self):
-        pass
+        self._setup_schema()
 
     @contextmanager
     def _database_connect(self):
@@ -20,6 +20,45 @@ class DatabasePersistence:
                 yield connection
         finally:
             connection.close()
+
+    def _setup_schema(self):
+        if self._check_table_exists('lists'):
+            with self._database_connect() as conn:
+                with conn.cursor(cursor_factory=DictCursor) as cursor:
+                    create_list_table = """
+                        CREATE TABLE lists (
+                        id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                        title varchar(255) NOT NULL UNIQUE);
+                    """
+                    cursor.execute(create_list_table)
+
+        if self._check_table_exists('todos'):
+            with self._database_connect() as conn:
+                with conn.cursor(cursor_factory=DictCursor) as cursor:
+                    create_todos_table = """
+                        CREATE TABLE todos (
+                        id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                        title text NOT NULL,
+                        completed boolean NOT NULL DEFAULT false,
+                        list_id integer NOT NULL
+                        REFERENCES lists(id) ON DELETE CASCADE);
+                    """
+                    cursor.execute(create_todos_table)
+
+    def _check_table_exists(self, table_name):
+        with self._database_connect() as conn:
+            with conn.cursor(cursor_factory=DictCursor) as cursor:
+                query_table = """
+                    SELECT COUNT(*)
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                    AND table_name = %s
+                    """
+                cursor.execute(query_table, table_name)
+                result = cursor.fetchone()
+
+        return result[0]
+
 
     def find_list(self, list_id):
         query = "SELECT * FROM lists WHERE id = %s"
