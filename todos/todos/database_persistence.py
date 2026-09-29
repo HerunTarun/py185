@@ -66,7 +66,17 @@ class DatabasePersistence:
 
 
     def find_list(self, list_id):
-        query = "SELECT * FROM lists WHERE id = %s"
+        query = """
+            SELECT lists.*,
+                    COUNT(todos.id) AS todos_count,
+                    COUNT(NULLIF(todos.completed, True)) AS todos_remaining
+            FROM lists
+            LEFT JOIN todos
+            ON todos.list_id = lists.id
+            WHERE lists.id = %s
+            GROUP BY lists.id
+            ORDER BY lists.title
+        """
         logger.info("Executing query: %s with list_id: %s", query, list_id)
         with self._database_connect() as conn:
             with conn.cursor(cursor_factory=DictCursor) as cursor:
@@ -77,11 +87,9 @@ class DatabasePersistence:
                 else:
                     lst = dict(lst)
 
-        todos = self._find_todos_for_list(list_id)
-        lst.setdefault('todos', todos)
         return lst
 
-    def _find_todos_for_list(self, list_id):
+    def find_todos_for_list(self, list_id):
         query = "SELECT * FROM todos WHERE list_id = %s"
         logger.info("Executing query: %s with list_id: %s", query, list_id)
         with self._database_connect() as conn:
