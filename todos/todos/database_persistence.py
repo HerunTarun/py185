@@ -12,7 +12,6 @@ class DatabasePersistence:
     def __init__(self):
         pass
 
-
     @contextmanager
     def _database_connect(self):
         connection = psycopg2.connect(dbname='todos')
@@ -58,10 +57,28 @@ class DatabasePersistence:
         return lists
 
     def create_new_list(self, title):
-        pass
+        query = "INSERT INTO lists (title) VALUES (%s)"
+        logger.info("Executing query: %s with title: %s", query, title)
+        with self._database_connect() as conn:
+            with conn.cursor(cursor_factory=DictCursor) as cursor:
+                cursor.execute(query, (title,))
 
     def update_list_by_id(self, list_id, new_title):
-        pass
+        query = "UPDATE lists SET title = %s WHERE list_id = %s"
+        logger.info("Executing query: %s with list_id: %s and new_title: %s",
+                    query, list_id, new_title)
+        with self._database_connect() as conn:
+            with conn.cursor(cursor_factory=DictCursor) as cursor:
+                cursor.execute(query, (new_title, list_id,))
+
+    def delete_list(self, list_id):
+        query = "DELETE FROM lists WHERE id = %s"
+        logger.info("Executing query: %s with list_id: %s",
+                    query, list_id)
+        with self._database_connect() as conn:
+            with conn.cursor(cursor_factory=DictCursor) as cursor:
+                cursor.execute(query, (list_id,))
+
 
     def create_new_todo(self, list_id, todo_title):
         pass
