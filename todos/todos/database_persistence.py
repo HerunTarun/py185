@@ -66,7 +66,11 @@ class DatabasePersistence:
         with self._database_connect() as conn:
             with conn.cursor(cursor_factory=DictCursor) as cursor:
                 cursor.execute(query, (list_id,))
-                lst = dict(cursor.fetchone())
+                lst = cursor.fetchone()
+                if not lst:
+                    return None
+                else:
+                    lst = dict(lst)
 
         todos = self._find_todos_for_list(list_id)
         lst.setdefault('todos', todos)
