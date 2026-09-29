@@ -30,7 +30,7 @@ class DatabasePersistence:
                         id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                         title varchar(255) NOT NULL UNIQUE);
                     """
-                    cursor.execute((create_list_table,))
+                    cursor.execute(create_list_table)
 
         if not self._check_table_exists('todos'):
             with self._database_connect() as conn:
@@ -43,7 +43,7 @@ class DatabasePersistence:
                         list_id integer NOT NULL
                         REFERENCES lists(id) ON DELETE CASCADE);
                     """
-                    cursor.execute((create_todos_table,))
+                    cursor.execute(create_todos_table)
 
     def _check_table_exists(self, table_name):
         with self._database_connect() as conn:
@@ -54,7 +54,7 @@ class DatabasePersistence:
                     WHERE table_schema = 'public'
                     AND table_name = %s
                     """
-                cursor.execute(query_table, table_name)
+                cursor.execute(query_table, (table_name,))
                 result = cursor.fetchone()
 
         return result[0]
