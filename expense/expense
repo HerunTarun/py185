@@ -11,6 +11,7 @@ from psycopg2 import extras
 class ExpenseData:
     def __init__(self):
         self._setup_schema()
+
     @contextmanager
     def _database_connect(self):
         connection = psycopg2.connect(dbname='expenses')
@@ -50,6 +51,7 @@ class ExpenseData:
     def _display_expenses(self, results):
         longest_memo = ""
         first_three_col_length = 34
+
         for line in results:
             columns = [
                 str(line['id']).rjust(3),
@@ -57,7 +59,9 @@ class ExpenseData:
                 str(line['amount']).rjust(12),
                 str(line['memo'])
             ]
+
             print(" | ".join(columns))
+
             if len(str(line['memo'])) > len(longest_memo):
                 longest_memo = str(line['memo'])
 
