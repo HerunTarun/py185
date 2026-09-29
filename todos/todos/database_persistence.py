@@ -22,19 +22,19 @@ class DatabasePersistence:
             connection.close()
 
     def _setup_schema(self):
-        if self._check_table_exists('lists'):
+        if not self._check_table_exists('lists'):
             with self._database_connect() as conn:
-                with conn.cursor(cursor_factory=DictCursor) as cursor:
+                with conn.cursor() as cursor:
                     create_list_table = """
                         CREATE TABLE lists (
                         id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                         title varchar(255) NOT NULL UNIQUE);
                     """
-                    cursor.execute(create_list_table)
+                    cursor.execute((create_list_table,))
 
-        if self._check_table_exists('todos'):
+        if not self._check_table_exists('todos'):
             with self._database_connect() as conn:
-                with conn.cursor(cursor_factory=DictCursor) as cursor:
+                with conn.cursor() as cursor:
                     create_todos_table = """
                         CREATE TABLE todos (
                         id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -43,7 +43,7 @@ class DatabasePersistence:
                         list_id integer NOT NULL
                         REFERENCES lists(id) ON DELETE CASCADE);
                     """
-                    cursor.execute(create_todos_table)
+                    cursor.execute((create_todos_table,))
 
     def _check_table_exists(self, table_name):
         with self._database_connect() as conn:
@@ -90,7 +90,7 @@ class DatabasePersistence:
 
         lists = [dict(result) for result in results]
         for lst in lists:
-            todos = self._find_todos_for_list(list['id'])
+            todos = self._find_todos_for_list(lst['id'])
             lst.setdefault('todos', todos)
 
         return lists
@@ -99,15 +99,15 @@ class DatabasePersistence:
         query = "INSERT INTO lists (title) VALUES (%s)"
         logger.info("Executing query: %s with title: %s", query, title)
         with self._database_connect() as conn:
-            with conn.cursor(cursor_factory=DictCursor) as cursor:
+            with conn.cursor() as cursor:
                 cursor.execute(query, (title,))
 
     def update_list_by_id(self, list_id, new_title):
-        query = "UPDATE lists SET title = %s WHERE list_id = %s"
+        query = "UPDATE lists SET title = %s WHERE id = %s"
         logger.info("Executing query: %s with list_id: %s and new_title: %s",
                     query, list_id, new_title)
         with self._database_connect() as conn:
-            with conn.cursor(cursor_factory=DictCursor) as cursor:
+            with conn.cursor() as cursor:
                 cursor.execute(query, (new_title, list_id,))
 
     def delete_list(self, list_id):
@@ -115,7 +115,7 @@ class DatabasePersistence:
         logger.info("Executing query: %s with list_id: %s",
                     query, list_id)
         with self._database_connect() as conn:
-            with conn.cursor(cursor_factory=DictCursor) as cursor:
+            with conn.cursor() as cursor:
                 cursor.execute(query, (list_id,))
 
     def create_new_todo(self, list_id, todo_title):
@@ -123,7 +123,7 @@ class DatabasePersistence:
         logger.info("Executing query: %s with list_id: %s and todo_title: %s",
                     query, list_id, todo_title)
         with self._database_connect() as conn:
-            with conn.cursor(cursor_factory=DictCursor) as cursor:
+            with conn.cursor() as cursor:
                 cursor.execute(query, (list_id, todo_title,))
 
     def delete_todo_from_list(self, list_id, todo_id):
@@ -131,7 +131,7 @@ class DatabasePersistence:
         logger.info("Executing query: %s with list_id: %s and id: %s",
                     query, list_id, todo_id)
         with self._database_connect() as conn:
-            with conn.cursor(cursor_factory=DictCursor) as cursor:
+            with conn.cursor() as cursor:
                 cursor.execute(query, (list_id, todo_id,))
 
     def update_todo_status(self, list_id, todo_id, new_status):
@@ -143,15 +143,15 @@ class DatabasePersistence:
         logger.info("Executing query: %s with list_id: %s, id: %s, status: %s",
                     query, list_id, todo_id, new_status)
         with self._database_connect() as conn:
-            with conn.cursor(cursor_factory=DictCursor) as cursor:
-                cursor.execute(query, (list_id, todo_id, new_status,))
+            with conn.cursor() as cursor:
+                cursor.execute(query, (new_status, list_id, todo_id,))
 
     def mark_all_todos_completed(self, list_id):
         query = "UPDATE todos SET completed = True WHERE list_id = %s"
         logger.info("Executing query: %s with list_id: %s",
                     query, list_id)
         with self._database_connect() as conn:
-            with conn.cursor(cursor_factory=DictCursor) as cursor:
+            with conn.cursor() as cursor:
                 cursor.execute(query, (list_id,))
 
 
